@@ -9,8 +9,11 @@ start:
     
     mov ax,1;ystanovka videoreshima
     int 10h
+    
        
-new_game:    
+new_game:
+    mov score,0
+    call draw_score_t    
     call delay
     call clear_field
     call niz_field
@@ -19,7 +22,8 @@ init_new_fig:
 
 
     
-    call check_lines
+    call check_lines 
+    call draw_score
     call init_new_figure;v figure oofset(random) TetrisFigures
     
     mov fast,0
@@ -27,7 +31,7 @@ init_new_fig:
     mov corY,0  
     call check_game_over    
     cmp gameover,1
-    jne new_game
+    jne OVER
     
     
     inc color
@@ -55,6 +59,111 @@ fast_down:
 zero_color:
     mov color,3
     jmp obratno 
+    
+    
+    
+    
+OVER:
+    call gameover_func    
+    jmp new_game    
+    
+    
+    
+draw_score proc
+    pusha
+   xor cx,cx
+    mov bx,10
+
+    mov ax,score
+    mov di,252
+again:
+    sub dx,dx
+    div bx
+    inc cx
+    push dx
+    cmp ax,0
+    jne again 
+    
+    mov al,gm_color
+loop_output:
+    pop dx
+    add dx,30h
+    cmp dx,39h
+    jle no_more_9
+    add dx,7
+no_more_9:
+    mov es:[di],dx
+    inc di
+    mov es:[di],al
+    inc di
+    loop loop_output
+        
+    popa
+    ret
+endp    
+;;;;;;;;;;;;;;;;;;;;draw_score_t;;;;;;;;;;;;;;;;;;;;    
+draw_score_t proc
+    pusha
+    
+    mov di,240
+    mov si,offset score_msg
+    mov cx,6
+    
+draw_score_lp:
+    movsb
+    push si
+    mov si,offset gm_color
+    movsb
+    pop si
+    loop draw_score_lp 
+    
+    mov cx,12
+clear_score:
+    mov si,offset black
+    movsb    
+    loop clear_score        
+    
+    popa
+    ret
+endp    
+;;;;;;;;;;;;;;;;;;;;GAMEOVER_FUNC;;;;;;;;;;;;;;;;;;;;    
+gameover_func proc
+    pusha
+    
+    mov di,400
+    mov si,offset gameover_msg
+    mov cx,27 
+gm_over:        
+    movsb
+    push si
+    mov si,offset gm_color
+    movsb
+    pop si   
+    loop gm_over 
+
+;;;;;;;;;;;;;;;;;;;;   
+    xor ax,ax
+    mov ah,1         
+any_key_to_continue:       ;shdem nashatiya luboi klavishi
+    int 16h
+    jz any_key_to_continue 
+;;;;;;;;;;;;;;;;;;;;
+    mov di,400;nachalo na ekrane
+    mov cx,54
+    
+    
+clear_gm_over:
+    mov si,offset black
+    movsb
+    loop clear_gm_over
+    
+    
+    mov ax,0C00h;ochistka bufera klaviaturi
+    int 21h
+      
+    popa
+    ret
+endp        
 ;;;;;;;;;;;;;;;;;;;;SDVIG_POLE;;;;;;;;;;;;;;;;;;;;;;;;;                                              
 sdvig_pole proc
     push cx
@@ -145,7 +254,8 @@ ugu:
     loop check_lines_loop
     jmp end_check_lines
 sdvig_field:
-    call sdvig_pole    
+    call sdvig_pole
+    add score,100;esli sdvigaem pole to liniya ubralas i +100k score    
     jmp ugu 
 end_check_lines:
     pop es    
@@ -463,9 +573,11 @@ check_valid_corX endp
 ;;;;;;;;;;;;DELAY;;;;;;;;;;;;;;;;;;;;;;;;;
 delay proc
     pusha    
-    mov cx,0000
+    mov cx,00000
+    ;xor dx,dx
     mov dx,60000;60miliseconds
-    mov ah,86h
+    mov ah,86h 
+    int 15h
     int 15h
     int 15h 
     int 15h
@@ -808,7 +920,7 @@ key proc
     
     mov ah,1;func proverki klavi
     int 16h
-    jz key_end;no_key_pressed;klavisha ne nashata
+    jz key_end;klavisha ne nashata
     
     xor ah,ah
     int 16h;schitivaem klavishu v ah ee kod
@@ -947,7 +1059,6 @@ SCREEN_WIDTH equ 80
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 stena db 186,1dh
 brick db 219,0
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 start_pos_box dw 58
 start_field_pos dw 60
@@ -1002,8 +1113,15 @@ TetrisFigures:
         ;;;;;;;;
         db 1,1,0
         db 1,0,0
-        db 1,0,0  
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+        db 1,0,0          
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; 
+gameover_msg db 'GAME OVER!!!(press any key)$'
+gm_color db 12 
+black db 0  
+
+score_msg db 'SCORE:$'
+score dw 0
+
 to_end:    
     mov ah,4ch
     int 21h   
